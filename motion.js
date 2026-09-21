@@ -1,6 +1,22 @@
 (() => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.documentElement.classList.add('motion-ready');
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+
+  const progress = document.createElement('span');
+  progress.className = 'scroll-progress';
+  progress.setAttribute('aria-hidden', 'true');
+  document.body.append(progress);
+
+  const main = document.querySelector('main');
+  const footer = document.querySelector('.footer');
+  if (main && footer) {
+    const marquee = document.createElement('div');
+    marquee.className = 'motion-marquee';
+    marquee.setAttribute('aria-hidden', 'true');
+    marquee.innerHTML = '<div><span>VIDEO EDITING</span><i>✦</i><span>SPORTS MEDIA</span><i>✦</i><span>WEBSITES</span><i>✦</i><span>GRAPHIC DESIGN</span><i>✦</i><span>VIDEO EDITING</span><i>✦</i><span>SPORTS MEDIA</span><i>✦</i><span>WEBSITES</span><i>✦</i><span>GRAPHIC DESIGN</span><i>✦</i></div>';
+    footer.before(marquee);
+  }
   const loader = document.createElement('div');
   loader.className = 'page-loader';
   loader.setAttribute('aria-hidden', 'true');
@@ -55,12 +71,58 @@
     ticking = false;
   };
   if (!reducedMotion) {
+    let lastScroll = window.scrollY;
     window.addEventListener('scroll', () => {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(updateParallax);
+      requestAnimationFrame(() => {
+        updateParallax();
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        progress.style.transform = `scaleX(${maxScroll > 0 ? window.scrollY / maxScroll : 0})`;
+        const header = document.querySelector('.header');
+        if (header) header.classList.toggle('header-hidden', window.scrollY > lastScroll && window.scrollY > 180);
+        lastScroll = window.scrollY;
+      });
     }, { passive: true });
     updateParallax();
+  }
+
+  if (!reducedMotion && finePointer) {
+    const dot = document.createElement('span');
+    const ring = document.createElement('span');
+    dot.className = 'cursor-dot';
+    ring.className = 'cursor-ring';
+    document.body.append(dot, ring);
+    let mouseX = -100, mouseY = -100, ringX = -100, ringY = -100;
+    window.addEventListener('pointermove', event => {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+      dot.style.transform = `translate3d(${mouseX}px,${mouseY}px,0)`;
+      const interactive = event.target.closest('a,button,input,select,textarea');
+      ring.classList.toggle('is-active', Boolean(interactive));
+    }, { passive: true });
+    const animateCursor = () => {
+      ringX += (mouseX - ringX) * 0.14;
+      ringY += (mouseY - ringY) * 0.14;
+      ring.style.transform = `translate3d(${ringX}px,${ringY}px,0)`;
+      requestAnimationFrame(animateCursor);
+    };
+    requestAnimationFrame(animateCursor);
+
+    document.querySelectorAll('.collection-card,.sports-piece,.project,.work-image,.feature').forEach(card => {
+      card.classList.add('tilt-card');
+      card.addEventListener('pointermove', event => {
+        const rect = card.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width - 0.5;
+        const y = (event.clientY - rect.top) / rect.height - 0.5;
+        card.style.setProperty('--tilt-x', `${(-y * 4).toFixed(2)}deg`);
+        card.style.setProperty('--tilt-y', `${(x * 5).toFixed(2)}deg`);
+      }, { passive: true });
+      card.addEventListener('pointerleave', () => {
+        card.style.setProperty('--tilt-x', '0deg');
+        card.style.setProperty('--tilt-y', '0deg');
+      });
+    });
   }
   document.addEventListener('click', event => {
     const link = event.target.closest('a');
